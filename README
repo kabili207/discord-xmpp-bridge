@@ -1,0 +1,28 @@
+
+
+Supported XEPs
+--------------
+XEP-0012: Last Activity
+XEP-0030: Service Discovery
+XEP-0054: vcard-temp
+XEP-0092: Software Version
+XEP-0100: Gateway Interaction (partial)
+XEP-0115: Entity Capabilities
+XEP-0172: User Nickname
+XEP-0199: XMPP Ping
+XEP-0202: Entity Time
+
+TODO
+----
+XEP-0094: Agent Information (deprecated, but should still be supported)
+XEP-0100: Gateway Interaction (remaining)
+XEP-0106: JID Escaping
+    - use JID.escapeNode() and JID.unescapeNode()
+    - May not be necessary since we only allow numbers
+XEP-0144: Roster Item Exchange (keep track of requests via mysql)
+XEP-0184: Message Delivery Receipts < install x11-plugins/pidgin-xmpp-receipts
+XEP-0280: Message Carbons
+    - Used to mirror messages sent through discord
+    - Requires privileged entity (xep-0356)
+XEP-0333: Chat markers
+XEP-0356: Privileged Entity
