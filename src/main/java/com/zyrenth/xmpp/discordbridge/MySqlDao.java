@@ -37,11 +37,11 @@ public class MySqlDao {
         try {
             prop.load(MySqlDao.class.getClassLoader().getResourceAsStream("application.properties"));
 
-            mysqlHost = prop.getProperty("mysqlhost");
-            mysqlDb = prop.getProperty("mysqldb");
-            mysqlUser = prop.getProperty("mysqluser");
-            mysqlPass = prop.getProperty("mysqlpass");
-            mysqlTimezone = prop.getProperty("mysqltz");
+            mysqlHost = prop.getProperty("mysqlHost");
+            mysqlDb = prop.getProperty("mysqlDB");
+            mysqlUser = prop.getProperty("mysqlUser");
+            mysqlPass = prop.getProperty("mysqlPassword");
+            mysqlTimezone = prop.getProperty("mysqlTimezone");
         } catch (IOException e) {
             logger.error("MySqlDao()", "Error loading properties", e);
         }

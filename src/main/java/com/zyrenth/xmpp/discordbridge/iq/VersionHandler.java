@@ -11,7 +11,6 @@ import java.util.EnumSet;
  */
 public class VersionHandler implements IQHandler {
 
-
     private static final String NAMESPACE = "jabber:iq:version";
 
     @Override

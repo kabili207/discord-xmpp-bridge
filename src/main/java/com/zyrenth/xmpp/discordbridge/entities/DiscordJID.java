@@ -1,31 +1,39 @@
-package com.zyrenth.xmpp.discordbridge;
+package com.zyrenth.xmpp.discordbridge.entities;
 
 import org.xmpp.packet.JID;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class JIDExt extends JID {
+public class DiscordJID extends JID {
 
     public static final Pattern DiscordUserPattern = Pattern.compile("^u(\\d+)$");
     public static final Pattern DiscordGroupPattern = Pattern.compile("^g(\\d+)$");
     public static final Pattern DiscordJidPattern = Pattern.compile("^[ug](\\d+)$");
 
 
-    private JIDExt(String node, String domain, String resource) {
+    private DiscordJID(String node, String domain, String resource) {
         super(node, domain, resource);
     }
 
-    public static JIDExt from(JID jid) {
-         return new JIDExt(jid.getNode(), jid.getDomain(), jid.getResource());
+    public static DiscordJID from(JID jid) {
+         return new DiscordJID(jid.getNode(), jid.getDomain(), jid.getResource());
+    }
+
+    public boolean isServer() {
+        return getNode() == null;
     }
 
     public boolean isDiscordUser() {
+        if (isServer())
+            return false;
         Matcher m = DiscordUserPattern.matcher(getNode());
         return m.find();
     }
 
     public boolean isDiscordGroup() {
+        if (isServer())
+            return false;
         Matcher m = DiscordGroupPattern.matcher(getNode());
         return m.find();
     }

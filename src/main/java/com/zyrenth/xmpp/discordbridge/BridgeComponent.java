@@ -1,5 +1,9 @@
 package com.zyrenth.xmpp.discordbridge;
 
+import com.zyrenth.xmpp.discordbridge.entities.EntityCapabilities;
+import com.zyrenth.xmpp.discordbridge.entities.Feature;
+import com.zyrenth.xmpp.discordbridge.entities.Identity;
+import com.zyrenth.xmpp.discordbridge.entities.DiscordJID;
 import com.zyrenth.xmpp.discordbridge.iq.IQHandler;
 import com.zyrenth.xmpp.discordbridge.iq.IQProcessor;
 import org.apache.commons.io.FileUtils;
@@ -7,14 +11,26 @@ import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
 import org.dom4j.*;
+import org.dom4j.tree.DefaultElement;
 import org.javacord.api.DiscordApi;
+import org.javacord.api.entity.activity.Activity;
+import org.javacord.api.entity.activity.ActivityAssets;
+import org.javacord.api.entity.activity.ActivityParty;
+import org.javacord.api.entity.activity.ActivityType;
 import org.javacord.api.entity.channel.PrivateChannel;
 import org.javacord.api.entity.message.MessageAttachment;
 import org.javacord.api.entity.message.MessageAuthor;
 import org.javacord.api.entity.user.User;
+import org.javacord.api.entity.user.UserStatus;
 import org.javacord.api.event.message.MessageCreateEvent;
+import org.javacord.api.event.user.UserChangeActivityEvent;
+import org.javacord.api.event.user.UserChangeStatusEvent;
 import org.javacord.api.exception.CannotMessageUserException;
 import org.javacord.api.listener.message.MessageCreateListener;
+import org.javacord.api.listener.user.UserChangeActivityListener;
+import org.javacord.api.listener.user.UserChangeStatusListener;
+import org.jetbrains.annotations.NotNull;
+import org.jivesoftware.smackx.pubsub.PubSubManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.component.AbstractComponent;
@@ -22,21 +38,22 @@ import org.xmpp.component.ComponentException;
 import org.xmpp.packet.*;
 
 import java.io.File;
-import java.net.URI;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletionException;
 
 /**
  * Created by kabili on 1/30/16.
  */
-public class BridgeComponent extends AbstractComponent implements BaseComponent, MessageCreateListener {
+public class BridgeComponent extends AbstractComponent implements BaseComponent, MessageCreateListener, UserChangeActivityListener, UserChangeStatusListener {
 
     public static final Logger logger = LoggerFactory.getLogger(BridgeComponent.class);
 
     private static final String ContactResource = "user";
+    public static final String TEST_USER_JID = "ruby@zyrenth.com";
 
     static Properties prop = new Properties();
     private JID mJid = null;
@@ -65,8 +82,9 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
         return ("Echos your message back to you in upper case");
     }
 
+    @Override
     public Identity getIdentity(JID rawJid) {
-        JIDExt jid = JIDExt.from(rawJid);
+        DiscordJID jid = DiscordJID.from(rawJid);
         Identity ident = null;
         if (jid.equals(getDomain())) {
             ident = new Identity("gateway", "discord", getName());
@@ -80,7 +98,7 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
 
     public Set<Feature> getFeatures(JID rawJid) {
         Set<Feature> features = new TreeSet<Feature>();
-        JIDExt jid = JIDExt.from(rawJid);
+        DiscordJID jid = DiscordJID.from(rawJid);
         String domain = getDomain();
         IQHandler.Type probeType = jid.equals(domain) ? IQHandler.Type.SERVER : IQHandler.Type.USER;
 
@@ -109,13 +127,13 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
         final IQ replyPacket = IQ.createResultIQ(iq);
         final Element responseElement = replyPacket.setChildElement("query", NAMESPACE_DISCO_INFO);
 
-        JIDExt toJid = JIDExt.from(iq.getTo());
+        DiscordJID toJid = DiscordJID.from(iq.getTo());
 
         logger.debug("disco request from " + iq.getFrom().toString() + " for " + toJid.toString());
 
         MessageDigest digest = null;
 
-        if (!toJid.isDiscordUser()) {
+        if (toJid.isDiscordUser()) {
             try {
                 digest = MessageDigest.getInstance("sha-1");
                 String hash = EntityCapabilities.getVerificationString(this, iq.getTo(), digest);
@@ -148,9 +166,6 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
 
             mJid = getJID();
 
-            final String projectId = prop.getProperty("projectId");
-            final String password = prop.getProperty("password");
-
             //ccsClient = CcsClient.prepareClient(projectId, password, false);
             //ccsClient.setPaylodProcessor(this);
             //ccsClient.connect();
@@ -182,7 +197,7 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
             Map<Integer, String> users = dao.getAllUsers();
             logger.debug("Notifying users");
             String domain = getDomain();
-            if(domain != null) {
+            if (domain != null) {
 
                 for (Map.Entry<Integer, String> user : users.entrySet()) {
                     Map<String, String> contacts = dao.getSubscribedContacts(user.getValue());
@@ -222,7 +237,7 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
             String hash = EntityCapabilities.getVerificationString(this, presence.getFrom(), digest);
             Element child = presence.addChildElement("c", "http://jabber.org/protocol/caps");
             child.addAttribute("hash", "sha-1");
-            child.addAttribute("node", "http://"+ getDomain());
+            child.addAttribute("node", "http://" + getDomain());
             child.addAttribute("ver", hash);
 
         } catch (NoSuchAlgorithmException e) {
@@ -230,29 +245,49 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
         }
     }
 
-    protected void addNickElement(Message message, String nick) {
+    protected void addNickElement(@NotNull Message message, String nick) {
         Element nickElem = message.addChildElement("nick", "http://jabber.org/protocol/nick");
         nickElem.setText(nick);
     }
 
-    protected void addNickElement(Presence presence, String nick) {
+    protected void addNickElement(@NotNull Presence presence, String nick) {
         Element nickElem = presence.addChildElement("nick", "http://jabber.org/protocol/nick");
         nickElem.setText(nick);
     }
 
-    protected void sendPresence(Presence.Type type, JID from, JID to, String name) throws ComponentException {
-        sendPresence(type, from.toString(), to.toString(), name);
-    }
-
-    protected void sendPresence(Presence.Type type, String from, String to, String name) throws ComponentException {
+    protected void sendPresence(Presence.Type type, @NotNull JID from, @NotNull JID to, String name) {
         Presence response = new Presence();
         response.setTo(to);
         response.setFrom(from);
+        DiscordJID discordJID = DiscordJID.from(from);
+        if (discordJID.isDiscordUser()) {
+            User user = discord.getUserById(discordJID.getDiscordId()).join();
+            UserStatus status = user.getStatus();
+            switch (status) {
+                case ONLINE:
+                    // do nothing
+                    break;
+                case DO_NOT_DISTURB:
+                    response.setShow(Presence.Show.dnd);
+                    break;
+                case IDLE:
+                    response.setShow(Presence.Show.away);
+                    break;
+                case OFFLINE:
+                case INVISIBLE:
+                    type = Presence.Type.unavailable;
+                    break;
+            }
+        }
         response.setType(type);
         addCapsElement(response);
         if (name != null && !name.isEmpty())
             addNickElement(response, name);
         send(response);
+    }
+
+    protected void sendPresence(Presence.Type type, @NotNull String from, @NotNull String to, String name) throws ComponentException {
+        sendPresence(type, new JID(from), new JID(to), name);
     }
 
     @Override
@@ -309,10 +344,22 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
     }
 
     @Override
+    public void onUserChangeStatus(UserChangeStatusEvent userChangeStatusEvent) {
+        User user = discord.getUserById(userChangeStatusEvent.getUser().getId()).join();
+        String from = "u" + user.getId() + "@" + getDomain() + "/" + ContactResource;
+        String to = TEST_USER_JID;
+        try {
+            sendPresence(null, from, to, null);
+        } catch (ComponentException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
     protected void handleMessage(Message message) {
 
 
-        JIDExt origTo = JIDExt.from(message.getTo());
+        DiscordJID origTo = DiscordJID.from(message.getTo());
         MySqlDao dao = MySqlDao.getInstance();
 
         if (origTo.isDiscordUser()) {
@@ -337,7 +384,7 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
                     if (url != null) {
                         URL sUrl = new URL(url.getText());
                         String[] sPaths = sUrl.getPath().split("/");
-                        String sPath = sPaths[sPaths.length -1];
+                        String sPath = sPaths[sPaths.length - 1];
                         File tempFile = new File(sPath);
                         FileUtils.copyURLToFile(sUrl, tempFile);
                         files.add(tempFile);
@@ -389,7 +436,7 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
 
     @Override
     public void onMessageCreate(MessageCreateEvent messageCreateEvent) {
-        if (messageCreateEvent.isGroupMessage()){
+        if (messageCreateEvent.isGroupMessage()) {
             onGuildMessageReceived(messageCreateEvent);
         } else if (messageCreateEvent.isPrivateMessage()) {
             onPrivateMessageReceived(messageCreateEvent);
@@ -407,7 +454,7 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
 
         org.javacord.api.entity.message.Message eventMessage = event.getMessage();
 
-        String jid = "ruby@zyrenth.com";
+        String jid = TEST_USER_JID;
         String messageContent = eventMessage.getContent();
         Message message = new Message();
         message.setTo(jid);
@@ -425,6 +472,10 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
             } catch (DocumentException e) {
                 e.printStackTrace();
             }
+        }
+
+        if (eventMessage.getMentionedUsers().contains(discord.getYourself())) {
+            message.addChildElement("attention", "urn:xmpp:attention:0");
         }
 
         logger.info(eventMessage.getContent());
@@ -463,103 +514,84 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
         String messageId = message.getIdAsString();
     }
 
-    /*
     @Override
-    public void handleMessage(CcsMessage msg) throws SmackException.NotConnectedException {
+    public void onUserChangeActivity(UserChangeActivityEvent discordEvent) {
+        Optional<Activity> optionalActivity = discordEvent.getNewActivity();
+        User user = discordEvent.getUser();
+        Message message = new Message();
+        message.setTo(TEST_USER_JID);
+        message.setFrom("u" + user.getId() + "@" + getDomain());
+        message.setType(Message.Type.headline);
+        Element event = message.addChildElement("event", "http://jabber.org/protocol/pubsub#event");
 
-        Map<String, String> payload = msg.getPayload();
-        String action = payload.get("action");
-        MySqlDao dao = MySqlDao.getInstance();
+        // See Gajim source for supported namespaces
+        // https://dev.gajim.org/gajim/python-nbxmpp/blob/master/nbxmpp/protocol.py
+        Element music = new DefaultElement("items", event.getNamespace())
+                .addAttribute("node", "http://jabber.org/protocol/tune")
+                .addElement("item").addElement("tune", "http://jabber.org/protocol/tune");
 
-        switch (action) {
-            case "REGISTER":
-                try {
-                    if (payload.containsKey("pairing_code")) {
-                        dao.updateRegistrationId(msg.getFrom(), payload.get("pairing_code"));
-                    } else {
-                        String pairingCode = dao.addRegistration(msg.getFrom());
-                        CcsClient client = CcsClient.getInstance();
-                        String msgId = dao.getUniqueMessageId();
+        // Should be "urn:xmpp:gaming:0", but clients haven't caught up yet
+        Element game = new DefaultElement("items", event.getNamespace())
+                .addAttribute("node", "http://jabber.org/protocol/gaming")
+                .addElement("item").addElement("game", "http://jabber.org/protocol/gaming");
 
-                        Map<String, String> outPayload = new HashMap<String, String>();
-                        outPayload.put("action", "pair");
-                        outPayload.put("pairing_code", pairingCode);
-                        outPayload.put("server_jid", "register@" + mJid.getDomain());
+        // Should be "urn:xmpp:viewing:0", but clients haven't caught up yet
+        Element viewing = new DefaultElement("items", event.getNamespace())
+                .addAttribute("node", "http://jabber.org/protocol/viewing")
+                .addElement("item").addElement("video", "http://jabber.org/protocol/viewing");
 
-                        String jsonRequest =
-                                client.createJsonMessage(
-                                        msg.getFrom(),
-                                        msgId,
-                                        outPayload,
-                                        null,
-                                        null, // TTL (null -> default-TTL)
-                                        false);
-                        client.send(jsonRequest);
-                    }
-                } catch (Throwable e) {
-                    logger.error("Error handling GCM REGISTER call", e);
-                }
-                break;
+        if (optionalActivity.isPresent()) {
+            Activity activity = optionalActivity.get();
+            ActivityType type = activity.getType();
+            ActivityAssets assets = activity.getAssets().orElse(null);
+            String details = activity.getDetails().orElse(null);
+            Instant startTime = activity.getStartTime().orElse(null);
+            Instant endTime = activity.getEndTime().orElse(null);
+            ActivityParty party = activity.getParty().orElse(null);
+            String activityState = activity.getState().orElse(null);
+            String streamingUrl = activity.getStreamingUrl().orElse(null);
+            switch (type) {
+                case LISTENING:
+                    // XEP-0118: User Tune
+                    music.addElement("artist").setText(activityState);
+                    music.addElement("title").setText(details);
+                    music.addElement("length").setText(Long.toString(endTime.getEpochSecond() - startTime.getEpochSecond()));
+                    music.addElement("source").setText(assets.getLargeText().orElse(null));
+                    break;
+                case PLAYING:
+                    // XEP-0196: User Gaming
+                    game.addElement("name").setText(activity.getName());
+                    break;
+                case WATCHING:
+                    // XEP-0197: User Viewing
+                    // Only available to bots
+                    break;
+            }
 
-            case "MESSAGE":
-                try {
-                    String jid = dao.getJid(msg.getFrom());
-                    if (jid != null) {
-                        Message message = new Message();
-                        message.setTo(jid);
-                        message.setBody(payload.get("message"));
-                        String number = payload.get("sender");
-                        String domain = mJid.getDomain();
-                        message.setFrom(number + "@" + domain + "/" + ContactResource);
-
-                        Element delayElem = message.addChildElement("delay", "urn:xmpp:delay");
-                        delayElem.addAttribute("from", domain);
-                        delayElem.addAttribute("stamp", payload.get("timestamp"));
-                        String name = null;
-
-                        if (payload.containsKey("contact")) {
-                            name = payload.get("contact");
-                        }
-
-                        boolean updated = dao.updateContactInfo(jid, number, name);
-                        if (updated && name != null && !name.isEmpty()) {
-                            addNickElement(message, name);
-                        }
-
-                        send(message);
-                    }
-                } catch (Throwable t) {
-                    logger.error("Error handling GCM MESSAGE call", t);
-                }
-                break;
-
-            case "DELIVERED":
-                try {
-                    String jid = dao.getJid(msg.getFrom());
-                    if (jid != null) {
-                        Message message = new Message();
-                        message.setTo(jid);
-                        String number = payload.get("sender");
-                        String domain = mJid.getDomain();
-                        message.setFrom(number + "@" + domain + "/" + ContactResource);
-
-                        //Element delayElem = message.addChildElement("delay", "urn:xmpp:delay");
-                        // delayElem.addAttribute("from", domain);
-                        //delayElem.addAttribute("stamp", payload.get("timestamp"));
-
-                        if (payload.containsKey("message_id")) {
-                            Element nickElem = message.addChildElement("received", "urn:xmpp:receipts");
-                            nickElem.addAttribute("id", payload.get("message_id"));
-                        }
-
-                        send(message);
-                    }
-                } catch (Throwable t) {
-                    logger.error("Error handling GCM DELIVERED call", t);
-                }
-                break;
         }
 
+        game = getTopLevel(game);
+        music = getTopLevel(music);
+        viewing = getTopLevel(viewing);
+
+        event.add(music);
+        send(message);
+        event.remove(music);
+
+        event.add(game);
+        send(message);
+        event.remove(game);
+
+        event.add(viewing);
+        send(message);
+        event.remove(viewing);
     }
-    */
+
+    private Element getTopLevel(Element elm) {
+        Element parent = elm.getParent();
+        if (parent != null) {
+            return getTopLevel(parent);
+        }
+        return elm;
+    }
 }

@@ -22,17 +22,17 @@
  * THE SOFTWARE.
  */
 
-package com.zyrenth.xmpp.discordbridge;
+package com.zyrenth.xmpp.discordbridge.entities;
 
+import com.zyrenth.xmpp.discordbridge.BaseComponent;
+import com.zyrenth.xmpp.discordbridge.entities.Feature;
+import com.zyrenth.xmpp.discordbridge.entities.Identity;
 import org.xmpp.packet.JID;
 
 import javax.xml.bind.DatatypeConverter;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlRootElement;
 import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;

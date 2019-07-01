@@ -1,7 +1,7 @@
 package com.zyrenth.xmpp.discordbridge.iq;
 
 import com.zyrenth.xmpp.discordbridge.BaseComponent;
-import com.zyrenth.xmpp.discordbridge.JIDExt;
+import com.zyrenth.xmpp.discordbridge.entities.DiscordJID;
 import org.dom4j.Element;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.Icon;
@@ -36,7 +36,7 @@ public class VCardHandler implements IQHandler {
         response.setType(IQ.Type.result);
         response.setTo(iq.getFrom());
         response.setFrom(iq.getTo());
-        JIDExt origTo = JIDExt.from(iq.getTo());
+        DiscordJID origTo = DiscordJID.from(iq.getTo());
 
         Element child = response.setChildElement("vCard", NAMESPACE);
         child.addElement("JABBERID").setText(origTo.toBareJID());

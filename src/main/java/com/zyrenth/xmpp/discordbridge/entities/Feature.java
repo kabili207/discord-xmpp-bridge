@@ -1,4 +1,4 @@
-package com.zyrenth.xmpp.discordbridge;
+package com.zyrenth.xmpp.discordbridge.entities;
 
 /*
  * The MIT License (MIT)

@@ -1,5 +1,7 @@
 package com.zyrenth.xmpp.discordbridge;
 
+import com.zyrenth.xmpp.discordbridge.entities.Feature;
+import com.zyrenth.xmpp.discordbridge.entities.Identity;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.listener.GloballyAttachableListener;
 import org.xmpp.component.Component;

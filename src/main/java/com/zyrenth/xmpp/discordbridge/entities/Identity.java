@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-package com.zyrenth.xmpp.discordbridge;
+package com.zyrenth.xmpp.discordbridge.entities;
 
 import javax.xml.XMLConstants;
 import javax.xml.bind.annotation.XmlAttribute;

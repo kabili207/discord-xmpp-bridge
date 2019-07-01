@@ -2,25 +2,38 @@
 
 Supported XEPs
 --------------
+RFC-3921: 2.2.2.1. Show
 XEP-0012: Last Activity
 XEP-0030: Service Discovery
 XEP-0054: vcard-temp
 XEP-0092: Software Version
 XEP-0100: Gateway Interaction (partial)
 XEP-0115: Entity Capabilities
+XEP-0118: User Tune
 XEP-0172: User Nickname
+XEP-0196: User Gaming
 XEP-0199: XMPP Ping
 XEP-0202: Entity Time
+XEP-0224: Attention
 
 TODO
 ----
-XEP-0094: Agent Information (deprecated, but should still be supported)
-XEP-0100: Gateway Interaction (remaining)
+RFC-3921: 2.2.2.2. Status
+XEP-0084: User Avatar
+	- Need to cache in database
+XEP-0094: Agent Information
+	- Deprecated, but should still be supported
+XEP-0100: Gateway Interaction
+	- Deregister user
+	- Actually store registration details
 XEP-0106: JID Escaping
     - use JID.escapeNode() and JID.unescapeNode()
     - May not be necessary since we only allow numbers
-XEP-0144: Roster Item Exchange (keep track of requests via mysql)
-XEP-0184: Message Delivery Receipts < install x11-plugins/pidgin-xmpp-receipts
+XEP-0144: Roster Item Exchange
+	- Keep track of requests via SQL
+XEP-0184: Message Delivery Receipts
+	- install x11-plugins/pidgin-xmpp-receipts
+XEP-0197: User Viewing
 XEP-0280: Message Carbons
     - Used to mirror messages sent through discord
     - Requires privileged entity (xep-0356)
