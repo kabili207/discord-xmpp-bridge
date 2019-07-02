@@ -278,9 +278,9 @@ public class BridgeComponent extends AbstractComponent implements BaseComponent,
                     type = Presence.Type.unavailable;
                     break;
             }
+            addCapsElement(response);
         }
         response.setType(type);
-        addCapsElement(response);
         if (name != null && !name.isEmpty())
             addNickElement(response, name);
         send(response);

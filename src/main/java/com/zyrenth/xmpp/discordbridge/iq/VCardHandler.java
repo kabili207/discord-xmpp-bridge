@@ -50,7 +50,7 @@ public class VCardHandler implements IQHandler {
                 child.addElement("NICKNAME").setText(user.getName());
                 Icon avatar = user.getAvatar();
                 Element photo = child.addElement("PHOTO");
-                photo.addElement("TYPE").setText("text/png");
+                photo.addElement("TYPE").setText(avatar.isAnimated() ? "text/gif" : "text/png");
                 photo.addElement("BINVAL").setText(Base64.getEncoder().encodeToString(avatar.asByteArray().join()));
             }
         } catch (Throwable e) {

@@ -32,10 +32,11 @@ XEP-0106: JID Escaping
 XEP-0144: Roster Item Exchange
 	- Keep track of requests via SQL
 XEP-0184: Message Delivery Receipts
-	- install x11-plugins/pidgin-xmpp-receipts
+	- For pidgin: install x11-plugins/pidgin-xmpp-receipts
 XEP-0197: User Viewing
 XEP-0280: Message Carbons
     - Used to mirror messages sent through discord
     - Requires privileged entity (xep-0356)
+XEP-0308: Last Message Correction
 XEP-0333: Chat markers
 XEP-0356: Privileged Entity
